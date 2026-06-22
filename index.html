@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Proyecto 2026 - Sistema de estudiantes</title>
+    <title>Captación 2026 - Sistema de estudiantes</title>
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <!-- Font Awesome 6 (iconos) -->
@@ -19,11 +19,8 @@
         .loading { display: none; text-align: center; margin: 20px 0; }
         .comuna-info { background: #e7f3ff; border-left: 5px solid #0d6efd; padding: 12px 18px; border-radius: 8px; margin-top: 15px; }
         .comuna-info i { margin-right: 8px; }
-        .section-title { font-size: 1.1rem; font-weight: 600; margin-top: 20px; margin-bottom: 10px; color: #0d6efd; }
         .hidden { display: none; }
         #resultadoBusqueda { margin-top: 15px; }
-        .telefono-enlace { color: #0d6efd; text-decoration: none; font-weight: 500; }
-        .telefono-enlace:hover { text-decoration: underline; }
         .badge-comuna { background-color: #0d6efd; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; }
         @media (max-width: 576px) {
             .card-header h2 { font-size: 1.3rem; }
@@ -123,8 +120,8 @@
                                 <!-- Comuna -->
                                 <div class="col-md-12">
                                     <label for="comuna" class="form-label">Comuna <span class="text-danger">*</span></label>
-                                    <select id="comuna" class="form-select" required>
-                                        <option value="">Selecciona...</option>
+                                    <select id="comuna" class="form-select" required disabled>
+                                        <option value="">Selecciona una parroquia primero</option>
                                     </select>
                                     <small class="text-muted">Selecciona la comuna donde resides</small>
                                 </div>
@@ -169,408 +166,406 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
- <script>
-    // ============================================================
-    //  CONFIGURACIÓN
-    // ============================================================
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwWOnqJTG6g1tU3T0_nRNsOQm4elKKd-5NX3xTLST_RwM4FAeEIxtODMzMYj8EDxYOXPA/exec';
+        // ============================================================
+        //  CONFIGURACIÓN
+        // ============================================================
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwWOnqJTG6g1tU3T0_nRNsOQm4elKKd-5NX3xTLST_RwM4FAeEIxtODMzMYj8EDxYOXPA/exec';
 
-    // ============================================================
-    //  DOM REFERENCIAS
-    // ============================================================
-    const $ = (id) => document.getElementById(id);
-    const cedulaBuscar = $('cedulaBuscar');
-    const btnBuscar = $('btnBuscar');
-    const loading = $('loading');
-    const resultadoBusqueda = $('resultadoBusqueda');
-    const form = $('formEstudiante');
-    const modo = $('modo');
-    const filaIndex = $('filaIndex');
-    const comunaInfo = $('comunaInfo');
-    const enlaceNombre = $('enlaceNombre');
-    const enlaceTelefono = $('enlaceTelefono');
+        // ============================================================
+        //  DOM REFERENCIAS
+        // ============================================================
+        const $ = (id) => document.getElementById(id);
+        const cedulaBuscar = $('cedulaBuscar');
+        const btnBuscar = $('btnBuscar');
+        const loading = $('loading');
+        const resultadoBusqueda = $('resultadoBusqueda');
+        const form = $('formEstudiante');
+        const modo = $('modo');
+        const filaIndex = $('filaIndex');
+        const comunaInfo = $('comunaInfo');
+        const enlaceNombre = $('enlaceNombre');
+        const enlaceTelefono = $('enlaceTelefono');
 
-    const campos = {
-        nombres: $('nombres'),
-        apellidos: $('apellidos'),
-        cedula: $('cedula'),
-        fechaNac: $('fechaNac'),
-        telefono: $('telefono'),
-        correo: $('correo'),
-        estado: $('estado'),
-        municipio: $('municipio'),
-        parroquia: $('parroquia'),
-        comuna: $('comuna')
-    };
-
-    const btnWhatsApp = $('btnWhatsApp');
-    const btnLlamada = $('btnLlamada');
-    const btnTelegram = $('btnTelegram');
-
-    // ============================================================
-    //  UTILITY
-    // ============================================================
-    function setLoading(show) {
-        loading.style.display = show ? 'block' : 'none';
-    }
-
-    function mostrarMensaje(mensaje, tipo = 'info') {
-        const alertClass = {
-            'info': 'alert-info',
-            'success': 'alert-success',
-            'danger': 'alert-danger',
-            'warning': 'alert-warning'
-        }[tipo] || 'alert-info';
-        resultadoBusqueda.innerHTML = `<div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-            ${mensaje}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>`;
-    }
-
-    function limpiarMensaje() {
-        resultadoBusqueda.innerHTML = '';
-    }
-
-    // ============================================================
-    //  CARGAR LISTAS
-    // ============================================================
-    async function cargarListas() {
-        try {
-            const resp = await fetch(API_URL + '?action=listas');
-            if (!resp.ok) throw new Error('Error al cargar listas');
-            const data = await resp.json();
-            if (data.success) {
-                // Guardar datos globales
-                window._comunasPorParroquia = data.comunasPorParroquia || {};
-                window._enlacePorComuna = data.enlacePorComuna || {};
-                window._municipiosPorEstado = data.municipiosPorEstado || {};
-                window._parroquiasPorMunicipio = data.parroquiasPorMunicipio || {};
-
-                // Llenar Estado
-                const estadoSelect = campos.estado;
-                estadoSelect.innerHTML = '<option value="">Selecciona...</option>';
-                data.estados.forEach(e => {
-                    const opt = document.createElement('option');
-                    opt.value = e;
-                    opt.textContent = e;
-                    estadoSelect.appendChild(opt);
-                });
-
-                // Llenar Comuna (inicialmente vacío, se llena al seleccionar parroquia)
-                const comunaSelect = campos.comuna;
-                comunaSelect.innerHTML = '<option value="">Selecciona una parroquia primero</option>';
-                comunaSelect.disabled = true;
-
-                // Resetear municipio y parroquia
-                campos.municipio.innerHTML = '<option value="">Selecciona un estado primero</option>';
-                campos.municipio.disabled = true;
-                campos.parroquia.innerHTML = '<option value="">Selecciona un municipio primero</option>';
-                campos.parroquia.disabled = true;
-
-            } else {
-                mostrarMensaje('Error al cargar listas: ' + data.error, 'danger');
-            }
-        } catch (e) {
-            mostrarMensaje('Error de red al cargar listas: ' + e.message, 'danger');
-        }
-    }
-
-    // ============================================================
-    //  FILTROS DINÁMICOS
-    // ============================================================
-    function actualizarMunicipios(estado) {
-        const municipioSelect = campos.municipio;
-        const municipios = window._municipiosPorEstado[estado] || [];
-        municipioSelect.innerHTML = '<option value="">Selecciona...</option>';
-        municipios.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m;
-            opt.textContent = m;
-            municipioSelect.appendChild(opt);
-        });
-        municipioSelect.disabled = (municipios.length === 0);
-        // Resetear parroquia y comuna
-        campos.parroquia.innerHTML = '<option value="">Selecciona un municipio primero</option>';
-        campos.parroquia.disabled = true;
-        campos.comuna.innerHTML = '<option value="">Selecciona una parroquia primero</option>';
-        campos.comuna.disabled = true;
-        comunaInfo.classList.add('hidden');
-    }
-
-    function actualizarParroquias(municipio) {
-        const parroquiaSelect = campos.parroquia;
-        const parroquias = window._parroquiasPorMunicipio[municipio] || [];
-        parroquiaSelect.innerHTML = '<option value="">Selecciona...</option>';
-        parroquias.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p;
-            opt.textContent = p;
-            parroquiaSelect.appendChild(opt);
-        });
-        parroquiaSelect.disabled = (parroquias.length === 0);
-        // Resetear comuna
-        campos.comuna.innerHTML = '<option value="">Selecciona una parroquia primero</option>';
-        campos.comuna.disabled = true;
-        comunaInfo.classList.add('hidden');
-    }
-
-    function actualizarComunas(parroquia) {
-        const comunaSelect = campos.comuna;
-        const comunas = window._comunasPorParroquia[parroquia] || [];
-        comunaSelect.innerHTML = '<option value="">Selecciona...</option>';
-        comunas.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c;
-            opt.textContent = c;
-            comunaSelect.appendChild(opt);
-        });
-        comunaSelect.disabled = (comunas.length === 0);
-        // Resetear enlace
-        comunaInfo.classList.add('hidden');
-    }
-
-    function mostrarEnlaceComuna(comuna) {
-        const enlace = window._enlacePorComuna[comuna] || null;
-        if (enlace && (enlace.nombre || enlace.telefono)) {
-            comunaInfo.classList.remove('hidden');
-            enlaceNombre.textContent = enlace.nombre || 'No disponible';
-            enlaceTelefono.textContent = enlace.telefono || 'No disponible';
-            const numeroLimpio = String(enlace.telefono || '').replace(/\D/g, '');
-            const numeroInternacional = numeroLimpio ? '+58' + numeroLimpio : '';
-            if (numeroLimpio) {
-                btnWhatsApp.href = 'https://wa.me/' + numeroInternacional;
-                btnWhatsApp.style.display = 'inline-block';
-                btnLlamada.href = 'tel:' + numeroInternacional;
-                btnLlamada.style.display = 'inline-block';
-                btnTelegram.href = 'https://t.me/' + numeroLimpio;
-                btnTelegram.style.display = 'inline-block';
-            } else {
-                btnWhatsApp.style.display = 'none';
-                btnLlamada.style.display = 'none';
-                btnTelegram.style.display = 'none';
-            }
-        } else {
-            comunaInfo.classList.add('hidden');
-        }
-    }
-
-    // ============================================================
-    //  EVENTOS DE FILTROS
-    // ============================================================
-    campos.estado.addEventListener('change', function() {
-        actualizarMunicipios(this.value);
-    });
-
-    campos.municipio.addEventListener('change', function() {
-        actualizarParroquias(this.value);
-    });
-
-    campos.parroquia.addEventListener('change', function() {
-        actualizarComunas(this.value);
-    });
-
-    campos.comuna.addEventListener('change', function() {
-        mostrarEnlaceComuna(this.value);
-    });
-
-    // ============================================================
-    //  CARGAR DATOS DEL ESTUDIANTE EN EL FORMULARIO
-    // ============================================================
-    function llenarFormulario(estudiante) {
-        campos.nombres.value = estudiante.Nombres || '';
-        campos.apellidos.value = estudiante.Apellidos || '';
-        campos.cedula.value = estudiante.Cédula || '';
-        let fecha = estudiante.FechaNacimiento || '';
-        if (fecha) {
-            try {
-                const d = new Date(fecha);
-                if (!isNaN(d)) campos.fechaNac.value = d.toISOString().split('T')[0];
-            } catch(e) {}
-        }
-        campos.telefono.value = estudiante.Teléfono || '';
-        campos.correo.value = estudiante.Correo || '';
-
-        const estado = estudiante.Estado || '';
-        campos.estado.value = estado;
-        actualizarMunicipios(estado);
-        campos.municipio.value = estudiante.Municipio || '';
-        actualizarParroquias(estudiante.Municipio || '');
-        campos.parroquia.value = estudiante.Parroquia || '';
-        actualizarComunas(estudiante.Parroquia || '');
-        campos.comuna.value = estudiante.Comuna || '';
-        mostrarEnlaceComuna(estudiante.Comuna || '');
-
-        modo.value = 'actualizar';
-        filaIndex.value = estudiante._fila || '';
-    }
-
-    function limpiarFormulario() {
-        for (let key in campos) {
-            if (key === 'estado') {
-                campos.estado.value = '';
-                actualizarMunicipios('');
-            } else if (key === 'municipio') {
-                campos.municipio.value = '';
-                actualizarParroquias('');
-            } else if (key === 'parroquia') {
-                campos.parroquia.value = '';
-                actualizarComunas('');
-            } else if (key === 'comuna') {
-                campos.comuna.value = '';
-                mostrarEnlaceComuna('');
-            } else {
-                campos[key].value = '';
-            }
-        }
-        comunaInfo.classList.add('hidden');
-        modo.value = 'nuevo';
-        filaIndex.value = '';
-    }
-
-    // ============================================================
-    //  BUSCAR ESTUDIANTE
-    // ============================================================
-    async function buscarEstudiante(cedula) {
-        limpiarMensaje();
-        if (!cedula || cedula.trim() === '') {
-            mostrarMensaje('Por favor, ingresa una cédula válida.', 'warning');
-            return;
-        }
-        setLoading(true);
-        try {
-            const url = `${API_URL}?action=buscar&cedula=${encodeURIComponent(cedula.trim())}`;
-            const resp = await fetch(url);
-            if (!resp.ok) {
-                const text = await resp.text();
-                throw new Error('Error HTTP: ' + resp.status + ' - ' + text);
-            }
-            const data = await resp.json();
-            setLoading(false);
-            if (data.success && data.estudiante) {
-                form.classList.remove('hidden');
-                llenarFormulario(data.estudiante);
-                mostrarMensaje('✅ Estudiante encontrado. Puedes actualizar sus datos.', 'success');
-            } else {
-                form.classList.remove('hidden');
-                limpiarFormulario();
-                campos.cedula.value = cedula.trim();
-                mostrarMensaje('ℹ️ Estudiante no encontrado. Completa el formulario para registrarlo.', 'info');
-            }
-        } catch (error) {
-            setLoading(false);
-            mostrarMensaje('❌ Error al buscar: ' + error.message, 'danger');
-            console.error('Error en buscar:', error);
-        }
-    }
-
-    // ============================================================
-    //  GUARDAR ESTUDIANTE
-    // ============================================================
-    async function guardarEstudiante(event) {
-        event.preventDefault();
-        limpiarMensaje();
-
-        const required = ['nombres', 'apellidos', 'cedula', 'fechaNac', 'telefono', 'correo', 'estado', 'municipio', 'parroquia', 'comuna'];
-        for (let id of required) {
-            if (!campos[id].value.trim()) {
-                mostrarMensaje(`El campo "${id}" es obligatorio.`, 'warning');
-                campos[id].focus();
-                return;
-            }
-        }
-        const cedulaVal = campos.cedula.value.replace(/\D/g, '');
-        if (!cedulaVal) {
-            mostrarMensaje('La cédula debe contener solo números.', 'warning');
-            return;
-        }
-        const telefonoVal = campos.telefono.value.replace(/\D/g, '');
-        if (!telefonoVal) {
-            mostrarMensaje('El teléfono debe contener solo números.', 'warning');
-            return;
-        }
-        const email = campos.correo.value.trim();
-        if (!email.includes('@') || !email.includes('.')) {
-            mostrarMensaje('Ingresa un correo electrónico válido.', 'warning');
-            return;
-        }
-
-        const datos = {
-            Nombres: campos.nombres.value.trim(),
-            Apellidos: campos.apellidos.value.trim(),
-            Cédula: cedulaVal,
-            FechaNacimiento: campos.fechaNac.value,
-            Teléfono: telefonoVal,
-            Correo: email.toLowerCase(),
-            Estado: campos.estado.value,
-            Municipio: campos.municipio.value,
-            Parroquia: campos.parroquia.value,
-            Comuna: campos.comuna.value,
-            _fila: filaIndex.value || '',
-            _modo: modo.value
+        const campos = {
+            nombres: $('nombres'),
+            apellidos: $('apellidos'),
+            cedula: $('cedula'),
+            fechaNac: $('fechaNac'),
+            telefono: $('telefono'),
+            correo: $('correo'),
+            estado: $('estado'),
+            municipio: $('municipio'),
+            parroquia: $('parroquia'),
+            comuna: $('comuna')
         };
 
-        setLoading(true);
-        try {
-            const resp = await fetch(API_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos)
-            });
-            const text = await resp.text();
-            let data;
+        const btnWhatsApp = $('btnWhatsApp');
+        const btnLlamada = $('btnLlamada');
+        const btnTelegram = $('btnTelegram');
+
+        // ============================================================
+        //  UTILITY
+        // ============================================================
+        function setLoading(show) {
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        function mostrarMensaje(mensaje, tipo = 'info') {
+            const alertClass = {
+                'info': 'alert-info',
+                'success': 'alert-success',
+                'danger': 'alert-danger',
+                'warning': 'alert-warning'
+            }[tipo] || 'alert-info';
+            resultadoBusqueda.innerHTML = `<div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`;
+        }
+
+        function limpiarMensaje() {
+            resultadoBusqueda.innerHTML = '';
+        }
+
+        // ============================================================
+        //  CARGAR LISTAS
+        // ============================================================
+        async function cargarListas() {
             try {
-                data = JSON.parse(text);
-            } catch (e) {
-                throw new Error('Respuesta no válida: ' + text.substring(0, 100));
-            }
-            setLoading(false);
-            if (data.success) {
-                mostrarMensaje('✅ ' + data.message, 'success');
-                if (data.estudiante) {
-                    llenarFormulario(data.estudiante);
+                const resp = await fetch(API_URL + '?action=listas');
+                if (!resp.ok) throw new Error('Error al cargar listas');
+                const data = await resp.json();
+                if (data.success) {
+                    // Guardar datos globales
+                    window._comunasPorParroquia = data.comunasPorParroquia || {};
+                    window._enlacePorComuna = data.enlacePorComuna || {};
+                    window._municipiosPorEstado = data.municipiosPorEstado || {};
+                    window._parroquiasPorMunicipio = data.parroquiasPorMunicipio || {};
+
+                    // Llenar Estado
+                    const estadoSelect = campos.estado;
+                    estadoSelect.innerHTML = '<option value="">Selecciona...</option>';
+                    data.estados.forEach(e => {
+                        const opt = document.createElement('option');
+                        opt.value = e;
+                        opt.textContent = e;
+                        estadoSelect.appendChild(opt);
+                    });
+
+                    // Llenar Comuna (inicialmente vacío, se llena al seleccionar parroquia)
+                    const comunaSelect = campos.comuna;
+                    comunaSelect.innerHTML = '<option value="">Selecciona una parroquia primero</option>';
+                    comunaSelect.disabled = true;
+
+                    // Resetear municipio y parroquia
+                    campos.municipio.innerHTML = '<option value="">Selecciona un estado primero</option>';
+                    campos.municipio.disabled = true;
+                    campos.parroquia.innerHTML = '<option value="">Selecciona un municipio primero</option>';
+                    campos.parroquia.disabled = true;
+
                 } else {
-                    await buscarEstudiante(cedulaVal);
+                    mostrarMensaje('Error al cargar listas: ' + data.error, 'danger');
+                }
+            } catch (e) {
+                mostrarMensaje('Error de red al cargar listas: ' + e.message, 'danger');
+            }
+        }
+
+        // ============================================================
+        //  FILTROS DINÁMICOS
+        // ============================================================
+        function actualizarMunicipios(estado) {
+            const municipioSelect = campos.municipio;
+            const municipios = window._municipiosPorEstado[estado] || [];
+            municipioSelect.innerHTML = '<option value="">Selecciona...</option>';
+            municipios.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                municipioSelect.appendChild(opt);
+            });
+            municipioSelect.disabled = (municipios.length === 0);
+            // Resetear parroquia y comuna
+            campos.parroquia.innerHTML = '<option value="">Selecciona un municipio primero</option>';
+            campos.parroquia.disabled = true;
+            campos.comuna.innerHTML = '<option value="">Selecciona una parroquia primero</option>';
+            campos.comuna.disabled = true;
+            comunaInfo.classList.add('hidden');
+        }
+
+        function actualizarParroquias(municipio) {
+            const parroquiaSelect = campos.parroquia;
+            const parroquias = window._parroquiasPorMunicipio[municipio] || [];
+            parroquiaSelect.innerHTML = '<option value="">Selecciona...</option>';
+            parroquias.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                parroquiaSelect.appendChild(opt);
+            });
+            parroquiaSelect.disabled = (parroquias.length === 0);
+            // Resetear comuna
+            campos.comuna.innerHTML = '<option value="">Selecciona una parroquia primero</option>';
+            campos.comuna.disabled = true;
+            comunaInfo.classList.add('hidden');
+        }
+
+        function actualizarComunas(parroquia) {
+            const comunaSelect = campos.comuna;
+            const comunas = window._comunasPorParroquia[parroquia] || [];
+            comunaSelect.innerHTML = '<option value="">Selecciona...</option>';
+            comunas.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                comunaSelect.appendChild(opt);
+            });
+            comunaSelect.disabled = (comunas.length === 0);
+            // Resetear enlace
+            comunaInfo.classList.add('hidden');
+        }
+
+        function mostrarEnlaceComuna(comuna) {
+            const enlace = window._enlacePorComuna[comuna] || null;
+            if (enlace && (enlace.nombre || enlace.telefono)) {
+                comunaInfo.classList.remove('hidden');
+                enlaceNombre.textContent = enlace.nombre || 'No disponible';
+                enlaceTelefono.textContent = enlace.telefono || 'No disponible';
+                const numeroLimpio = String(enlace.telefono || '').replace(/\D/g, '');
+                const numeroInternacional = numeroLimpio ? '+58' + numeroLimpio : '';
+                if (numeroLimpio) {
+                    btnWhatsApp.href = 'https://wa.me/' + numeroInternacional;
+                    btnWhatsApp.style.display = 'inline-block';
+                    btnLlamada.href = 'tel:' + numeroInternacional;
+                    btnLlamada.style.display = 'inline-block';
+                    btnTelegram.href = 'https://t.me/' + numeroLimpio;
+                    btnTelegram.style.display = 'inline-block';
+                } else {
+                    btnWhatsApp.style.display = 'none';
+                    btnLlamada.style.display = 'none';
+                    btnTelegram.style.display = 'none';
                 }
             } else {
-                mostrarMensaje('❌ ' + data.error, 'danger');
+                comunaInfo.classList.add('hidden');
             }
-        } catch (error) {
-            setLoading(false);
-            mostrarMensaje('❌ Error al guardar: ' + error.message, 'danger');
-            console.error('Error en guardar:', error);
         }
-    }
 
-    // ============================================================
-    //  EVENTOS
-    // ============================================================
-    btnBuscar.addEventListener('click', function() {
-        buscarEstudiante(cedulaBuscar.value);
-    });
+        // ============================================================
+        //  EVENTOS DE FILTROS
+        // ============================================================
+        campos.estado.addEventListener('change', function() {
+            actualizarMunicipios(this.value);
+        });
 
-    cedulaBuscar.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            btnBuscar.click();
+        campos.municipio.addEventListener('change', function() {
+            actualizarParroquias(this.value);
+        });
+
+        campos.parroquia.addEventListener('change', function() {
+            actualizarComunas(this.value);
+        });
+
+        campos.comuna.addEventListener('change', function() {
+            mostrarEnlaceComuna(this.value);
+        });
+
+        // ============================================================
+        //  CARGAR DATOS DEL ESTUDIANTE EN EL FORMULARIO
+        // ============================================================
+        function llenarFormulario(estudiante) {
+            campos.nombres.value = estudiante.Nombres || '';
+            campos.apellidos.value = estudiante.Apellidos || '';
+            campos.cedula.value = estudiante.Cédula || '';
+            let fecha = estudiante.FechaNacimiento || '';
+            if (fecha) {
+                try {
+                    const d = new Date(fecha);
+                    if (!isNaN(d)) campos.fechaNac.value = d.toISOString().split('T')[0];
+                } catch(e) {}
+            }
+            campos.telefono.value = estudiante.Teléfono || '';
+            campos.correo.value = estudiante.Correo || '';
+
+            const estado = estudiante.Estado || '';
+            campos.estado.value = estado;
+            actualizarMunicipios(estado);
+            campos.municipio.value = estudiante.Municipio || '';
+            actualizarParroquias(estudiante.Municipio || '');
+            campos.parroquia.value = estudiante.Parroquia || '';
+            actualizarComunas(estudiante.Parroquia || '');
+            campos.comuna.value = estudiante.Comuna || '';
+            mostrarEnlaceComuna(estudiante.Comuna || '');
+
+            modo.value = 'actualizar';
+            filaIndex.value = estudiante._fila || '';
         }
-    });
 
-    form.addEventListener('submit', guardarEstudiante);
-
-    // ============================================================
-    //  INICIALIZACIÓN
-    // ============================================================
-    (async function init() {
-        await cargarListas();
-        const params = new URLSearchParams(window.location.search);
-        const cedulaParam = params.get('cedula');
-        if (cedulaParam) {
-            cedulaBuscar.value = cedulaParam;
-            await buscarEstudiante(cedulaParam);
+        function limpiarFormulario() {
+            for (let key in campos) {
+                if (key === 'estado') {
+                    campos.estado.value = '';
+                    actualizarMunicipios('');
+                } else if (key === 'municipio') {
+                    campos.municipio.value = '';
+                    actualizarParroquias('');
+                } else if (key === 'parroquia') {
+                    campos.parroquia.value = '';
+                    actualizarComunas('');
+                } else if (key === 'comuna') {
+                    campos.comuna.value = '';
+                    mostrarEnlaceComuna('');
+                } else {
+                    campos[key].value = '';
+                }
+            }
+            comunaInfo.classList.add('hidden');
+            modo.value = 'nuevo';
+            filaIndex.value = '';
         }
-    })();
-</script>
+
+        // ============================================================
+        //  BUSCAR ESTUDIANTE
+        // ============================================================
+        async function buscarEstudiante(cedula) {
+            limpiarMensaje();
+            if (!cedula || cedula.trim() === '') {
+                mostrarMensaje('Por favor, ingresa una cédula válida.', 'warning');
+                return;
+            }
+            setLoading(true);
+            try {
+                const url = `${API_URL}?action=buscar&cedula=${encodeURIComponent(cedula.trim())}`;
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error('Error HTTP: ' + resp.status + ' - ' + text);
+                }
+                const data = await resp.json();
+                setLoading(false);
+                if (data.success && data.estudiante) {
+                    form.classList.remove('hidden');
+                    llenarFormulario(data.estudiante);
+                    mostrarMensaje('✅ Estudiante encontrado. Puedes actualizar sus datos.', 'success');
+                } else {
+                    form.classList.remove('hidden');
+                    limpiarFormulario();
+                    campos.cedula.value = cedula.trim();
+                    mostrarMensaje('ℹ️ Estudiante no encontrado. Completa el formulario para registrarlo.', 'info');
+                }
+            } catch (error) {
+                setLoading(false);
+                mostrarMensaje('❌ Error al buscar: ' + error.message, 'danger');
+                console.error('Error en buscar:', error);
+            }
+        }
+
+        // ============================================================
+        //  GUARDAR ESTUDIANTE
+        // ============================================================
+        async function guardarEstudiante(event) {
+            event.preventDefault();
+            limpiarMensaje();
+
+            const required = ['nombres', 'apellidos', 'cedula', 'fechaNac', 'telefono', 'correo', 'estado', 'municipio', 'parroquia', 'comuna'];
+            for (let id of required) {
+                if (!campos[id].value.trim()) {
+                    mostrarMensaje(`El campo "${id}" es obligatorio.`, 'warning');
+                    campos[id].focus();
+                    return;
+                }
+            }
+            const cedulaVal = campos.cedula.value.replace(/\D/g, '');
+            if (!cedulaVal) {
+                mostrarMensaje('La cédula debe contener solo números.', 'warning');
+                return;
+            }
+            const telefonoVal = campos.telefono.value.replace(/\D/g, '');
+            if (!telefonoVal) {
+                mostrarMensaje('El teléfono debe contener solo números.', 'warning');
+                return;
+            }
+            const email = campos.correo.value.trim();
+            if (!email.includes('@') || !email.includes('.')) {
+                mostrarMensaje('Ingresa un correo electrónico válido.', 'warning');
+                return;
+            }
+
+            const datos = {
+                Nombres: campos.nombres.value.trim(),
+                Apellidos: campos.apellidos.value.trim(),
+                Cédula: cedulaVal,
+                FechaNacimiento: campos.fechaNac.value,
+                Teléfono: telefonoVal,
+                Correo: email.toLowerCase(),
+                Estado: campos.estado.value,
+                Municipio: campos.municipio.value,
+                Parroquia: campos.parroquia.value,
+                Comuna: campos.comuna.value,
+                _fila: filaIndex.value || '',
+                _modo: modo.value
+            };
+
+            setLoading(true);
+            try {
+                const resp = await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const text = await resp.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Respuesta no válida: ' + text.substring(0, 100));
+                }
+                setLoading(false);
+                if (data.success) {
+                    mostrarMensaje('✅ ' + data.message, 'success');
+                    if (data.estudiante) {
+                        llenarFormulario(data.estudiante);
+                    } else {
+                        await buscarEstudiante(cedulaVal);
+                    }
+                } else {
+                    mostrarMensaje('❌ ' + data.error, 'danger');
+                }
+            } catch (error) {
+                setLoading(false);
+                mostrarMensaje('❌ Error al guardar: ' + error.message, 'danger');
+                console.error('Error en guardar:', error);
+            }
+        }
+
+        // ============================================================
+        //  EVENTOS
+        // ============================================================
+        btnBuscar.addEventListener('click', function() {
+            buscarEstudiante(cedulaBuscar.value);
+        });
+
+        cedulaBuscar.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                btnBuscar.click();
+            }
+        });
+
+        form.addEventListener('submit', guardarEstudiante);
+
+        // ============================================================
+        //  INICIALIZACIÓN
+        // ============================================================
+        (async function init() {
+            await cargarListas();
+            const params = new URLSearchParams(window.location.search);
+            const cedulaParam = params.get('cedula');
+            if (cedulaParam) {
+                cedulaBuscar.value = cedulaParam;
+                await buscarEstudiante(cedulaParam);
+            }
+        })();
     </script>
 </body>
 </html>
