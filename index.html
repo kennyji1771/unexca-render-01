@@ -311,45 +311,61 @@
         cSelect.disabled = (comunas.length === 0);
         comunaInfo.classList.add('hidden');
     }
+   function mostrarEnlaceComuna(comuna) {
+    const enlace = window._enlacePorComuna[comuna] || null;
+    const nombreHidden = document.getElementById('enlaceNombreHidden');
+    const telefonoHidden = document.getElementById('enlaceTelefonoHidden');
 
-    function mostrarEnlaceComuna(comuna) {
-        const enlace = window._enlacePorComuna[comuna] || null;
-        const nombreHidden = document.getElementById('enlaceNombreHidden');
-        const telefonoHidden = document.getElementById('enlaceTelefonoHidden');
+    if (enlace && (enlace.nombre || enlace.telefono)) {
+        comunaInfo.classList.remove('hidden');
+        enlaceNombre.textContent = enlace.nombre || 'No disponible';
+        enlaceTelefono.textContent = enlace.telefono || 'No disponible';
 
-        if (enlace && (enlace.nombre || enlace.telefono)) {
-            comunaInfo.classList.remove('hidden');
-            enlaceNombre.textContent = enlace.nombre || 'No disponible';
-            enlaceTelefono.textContent = enlace.telefono || 'No disponible';
+        // Guardar en campos ocultos (tal cual viene de la hoja)
+        nombreHidden.value = enlace.nombre || '';
+        telefonoHidden.value = enlace.telefono || '';
 
-            // Llenar campos ocultos
-            nombreHidden.value = enlace.nombre || '';
-            telefonoHidden.value = enlace.telefono || '';
-
-            // Normalizar teléfono para mostrar
-            const num = String(enlace.telefono || '').replace(/\D/g, '');
-            const numInt = num ? '+58' + num : '';
-            if (num) {
-                btnWhatsApp.href = 'https://wa.me/' + numInt;
-                btnWhatsApp.style.display = 'inline-block';
-                btnLlamada.href = 'tel:' + numInt;
-                btnLlamada.style.display = 'inline-block';
-                btnTelegram.href = 'https://t.me/' + num;
-                btnTelegram.style.display = 'inline-block';
+        // Limpiar el número para construir enlaces
+        let numeroLimpio = String(enlace.telefono || '').replace(/[\s\-()]/g, ''); // elimina espacios, guiones, paréntesis
+        // Si no empieza con '+', agregar '+58'
+        if (!numeroLimpio.startsWith('+')) {
+            if (numeroLimpio.startsWith('58')) {
+                numeroLimpio = '+' + numeroLimpio;
             } else {
-                btnWhatsApp.style.display = 'none';
-                btnLlamada.style.display = 'none';
-                btnTelegram.style.display = 'none';
+                numeroLimpio = '+58' + numeroLimpio;
             }
+        }
+
+        // Para WhatsApp: solo dígitos (sin '+')
+        let soloDigitos = numeroLimpio.replace(/\D/g, '');
+        // Para Telegram: usar solo dígitos (sin '+')
+        let telefonoTelegram = soloDigitos;
+
+        // Construir enlaces
+        if (soloDigitos) {
+            // WhatsApp: https://wa.me/58412...
+            btnWhatsApp.href = 'https://wa.me/' + soloDigitos;
+            btnWhatsApp.style.display = 'inline-block';
+            // Llamada: tel:+58412...
+            btnLlamada.href = 'tel:' + numeroLimpio;
+            btnLlamada.style.display = 'inline-block';
+            // Telegram: https://t.me/58412... (puede no funcionar si no tiene usuario, pero es lo que hay)
+            btnTelegram.href = 'https://t.me/' + telefonoTelegram;
+            btnTelegram.style.display = 'inline-block';
         } else {
-            comunaInfo.classList.add('hidden');
-            nombreHidden.value = '';
-            telefonoHidden.value = '';
             btnWhatsApp.style.display = 'none';
             btnLlamada.style.display = 'none';
             btnTelegram.style.display = 'none';
         }
+    } else {
+        comunaInfo.classList.add('hidden');
+        nombreHidden.value = '';
+        telefonoHidden.value = '';
+        btnWhatsApp.style.display = 'none';
+        btnLlamada.style.display = 'none';
+        btnTelegram.style.display = 'none';
     }
+}
 
     // ================================================================
     //  EVENTOS DE FILTROS
