@@ -61,6 +61,9 @@
                     <form id="formEstudiante" class="hidden">
                         <input type="hidden" id="modo" value="nuevo" />
                         <input type="hidden" id="filaIndex" value="" />
+                        <!-- Campos ocultos para el enlace comunal -->
+                        <input type="hidden" id="enlaceNombreHidden" name="enlace_nombre" />
+                        <input type="hidden" id="enlaceTelefonoHidden" name="enlace_telefono" />
 
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -137,6 +140,11 @@
                         </div>
                     </form>
 
+                    <!-- Botón Nueva consulta (aparece después de guardar) -->
+                    <button type="button" id="btnLimpiar" class="btn btn-secondary mt-3 hidden">
+                        <i class="fas fa-undo me-2"></i>Nueva consulta
+                    </button>
+
                 </div>
             </div>
             <footer class="text-center text-muted mt-4 small">
@@ -151,7 +159,7 @@
     // ================================================================
     //  CONFIGURACIÓN
     // ================================================================
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxe0064EeUEgbxJAhLXqd033BOa09UIY4o3rFDeUn97joUqJizE82GdSjrGsQo3Oqt-jw/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzi5eaORS3DTXITz4OI_QNU6BMkSGhGYWtM3ri458Ukuh9JVrSYs07TeKB0O6entQIvNg/exec';
 
     // ================================================================
     //  DOM REFERENCIAS
@@ -167,6 +175,7 @@
     const comunaInfo = $('comunaInfo');
     const enlaceNombre = $('enlaceNombre');
     const enlaceTelefono = $('enlaceTelefono');
+    const btnLimpiar = $('btnLimpiar');
 
     const campos = {
         nombres: $('nombres'),
@@ -193,6 +202,8 @@
     function mostrarMensaje(msg, tipo = 'info') {
         const cls = { 'info': 'alert-info', 'success': 'alert-success', 'danger': 'alert-danger', 'warning': 'alert-warning' }[tipo] || 'alert-info';
         resultado.innerHTML = `<div class="alert ${cls} alert-dismissible fade show" role="alert">${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+        // Hacer scroll al mensaje
+        resultado.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     function limpiarMensaje() { resultado.innerHTML = ''; }
 
@@ -226,6 +237,7 @@
                 campos.comuna.innerHTML = '<option value="">Selecciona una parroquia primero</option>';
                 campos.comuna.disabled = true;
                 comunaInfo.classList.add('hidden');
+                btnLimpiar.classList.add('hidden');
             } else {
                 mostrarMensaje('Error al cargar listas: ' + data.error, 'danger');
             }
@@ -302,10 +314,19 @@
 
     function mostrarEnlaceComuna(comuna) {
         const enlace = window._enlacePorComuna[comuna] || null;
+        const nombreHidden = document.getElementById('enlaceNombreHidden');
+        const telefonoHidden = document.getElementById('enlaceTelefonoHidden');
+
         if (enlace && (enlace.nombre || enlace.telefono)) {
             comunaInfo.classList.remove('hidden');
             enlaceNombre.textContent = enlace.nombre || 'No disponible';
             enlaceTelefono.textContent = enlace.telefono || 'No disponible';
+
+            // Llenar campos ocultos
+            nombreHidden.value = enlace.nombre || '';
+            telefonoHidden.value = enlace.telefono || '';
+
+            // Normalizar teléfono para mostrar
             const num = String(enlace.telefono || '').replace(/\D/g, '');
             const numInt = num ? '+58' + num : '';
             if (num) {
@@ -322,6 +343,11 @@
             }
         } else {
             comunaInfo.classList.add('hidden');
+            nombreHidden.value = '';
+            telefonoHidden.value = '';
+            btnWhatsApp.style.display = 'none';
+            btnLlamada.style.display = 'none';
+            btnTelegram.style.display = 'none';
         }
     }
 
@@ -347,6 +373,10 @@
         campos.telefono.value = estudiante.Teléfono || '';
         campos.correo.value = estudiante.Correo || '';
 
+        // Restaurar enlace si existe
+        document.getElementById('enlaceNombreHidden').value = estudiante.ENLACE || '';
+        document.getElementById('enlaceTelefonoHidden').value = estudiante.ENLACE_TELEFONO || '';
+
         const estado = estudiante.Estado || '';
         campos.estado.value = estado;
         actualizarMunicipios(estado);
@@ -369,9 +399,12 @@
             else if (key === 'comuna') { campos.comuna.value = ''; mostrarEnlaceComuna(''); }
             else campos[key].value = '';
         }
+        document.getElementById('enlaceNombreHidden').value = '';
+        document.getElementById('enlaceTelefonoHidden').value = '';
         comunaInfo.classList.add('hidden');
         modo.value = 'nuevo';
         filaIndex.value = '';
+        btnLimpiar.classList.add('hidden');
     }
 
     // ================================================================
@@ -393,11 +426,13 @@
             if (data.success && data.estudiante) {
                 form.classList.remove('hidden');
                 llenarFormulario(data.estudiante);
+                btnLimpiar.classList.remove('hidden');
                 mostrarMensaje('✅ Estudiante encontrado. Puedes actualizar sus datos.', 'success');
             } else {
                 form.classList.remove('hidden');
                 limpiarFormulario();
                 campos.cedula.value = cedula.trim();
+                btnLimpiar.classList.remove('hidden');
                 mostrarMensaje('ℹ️ Estudiante no encontrado. Completa el formulario para registrarlo.', 'info');
             }
         } catch (error) {
@@ -445,13 +480,14 @@
             Municipio: campos.municipio.value,
             Parroquia: campos.parroquia.value,
             Comuna: campos.comuna.value,
+            ENLACE: document.getElementById('enlaceNombreHidden').value,
+            ENLACE_TELEFONO: document.getElementById('enlaceTelefonoHidden').value,
             _fila: filaIndex.value || '',
             _modo: modo.value
         };
 
         setLoading(true);
         try {
-            // ===== CLAVE: mode: 'no-cors' (igual que el sistema ODDI) =====
             await fetch(API_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -460,7 +496,13 @@
             });
 
             setLoading(false);
-            mostrarMensaje('✅ Datos guardados correctamente.', 'success');
+            const esActualizacion = modo.value === 'actualizar';
+            const mensaje = esActualizacion ? '✅ Actualización hecha' : '✅ Registro completado';
+            mostrarMensaje(mensaje, 'success');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            btnLimpiar.classList.remove('hidden');
+
+            // Recargar datos actualizados
             await buscarEstudiante(cedulaVal);
 
         } catch (error) {
@@ -475,6 +517,16 @@
     btnBuscar.addEventListener('click', () => buscarEstudiante(cedulaBuscar.value));
     cedulaBuscar.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); btnBuscar.click(); } });
     form.addEventListener('submit', guardarEstudiante);
+
+    btnLimpiar.addEventListener('click', function() {
+        limpiarFormulario();
+        form.classList.add('hidden');
+        resultado.innerHTML = '';
+        cedulaBuscar.value = '';
+        cedulaBuscar.focus();
+        btnLimpiar.classList.add('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 
     // ================================================================
     //  INICIALIZACIÓN
